@@ -4,6 +4,9 @@
 #include <string>
 using namespace std;
 
+#include "connection.h"
+#include "connectionpool.h"
+
 // User表的ORM类
 class User
 {

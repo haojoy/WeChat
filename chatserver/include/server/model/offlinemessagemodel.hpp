@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include "user.hpp"
 using namespace std;
 
 // 提供离线消息表的操作接口方法

@@ -13,9 +13,26 @@
 ## 必要环境
 
 - 安装`boost`库
+
+  sudo apt-get install libboost-all-dev
+
 - 安装`muduo`库
+
+  git clone https://github.com/chenshuo/muduo.git
+  cd muduo/
+  mkdir -p build/release
+  cd build/release/
+  cmake ../..
+  make -j4
+   sudo make install
+
 - 安装`Nginx`
+
 - 安装`redis`
+
+  sudo apt-get install -y redis-server
+
+  sudo apt-get install -y libhiredis-dev
 
 ## 构建项目
 

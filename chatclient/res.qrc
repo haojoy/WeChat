@@ -44,5 +44,7 @@
         <file>images/arrow-right.png</file>
         <file>images/icon/avatar.png</file>
         <file>images/icon/avatar2.png</file>
+        <file>qss/style.qss</file>
+        <file>images/icon/logo.ico</file>
     </qresource>
 </RCC>

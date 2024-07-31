@@ -26,11 +26,9 @@ Kernel::Kernel() : m_uuid(0), m_state(0)
     m_loginDialog = new LoginDialog;
     connect(m_loginDialog, SIGNAL(SIG_LoginCommit(QString, QString)), this, SLOT(slot_LoginCommit(QString, QString)));
     connect(m_loginDialog, SIGNAL(SIG_RegisterCommit(QString,QString,QString)), this, SLOT(slot_RegisterCommit(QString,QString,QString)));
+    connect(m_loginDialog, SIGNAL(SIG_CloseLoginDialog()), this, SLOT(slot_CloseLoginDialog()));
+    m_loginDialog->showNormal();
 
-    if (m_loginDialog->exec() != QDialog::Accepted) {
-        m_loginDialog->hide();
-        QTimer::singleShot(0, QCoreApplication::instance(), &QCoreApplication::quit); // 退出事件循环
-    }
     m_mainWnd = new MainWindow(nullptr, m_uuid); // m_uuid还未被正确设定值
     // 发送聊天信息
     connect(m_mainWnd, SIGNAL(sendChatMessage(int, QString)), this, SLOT(slot_SendChatMsg(int, QString)));
@@ -168,6 +166,9 @@ void Kernel::slot_RegisterCommit(QString username, QString tel, QString password
     strcpy_s(rq.password, strPassWord.c_str());
 
     m_pClient->SendData(0, (char*)&rq, sizeof(rq));
+}
+void Kernel::slot_CloseLoginDialog(){
+    QTimer::singleShot(0, QCoreApplication::instance(), &QCoreApplication::quit); // 退出事件循环
 }
 
 void Kernel::slot_FriendInfoRs(unsigned long lSendIP, const char* buf, int nLen) {

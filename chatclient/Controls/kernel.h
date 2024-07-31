@@ -95,6 +95,7 @@ public slots:
      * @param buf
      * @param nLen
      */
+    void slot_CloseLoginDialog();
     void slot_FriendInfoRs(unsigned long lSendIP, const char* buf, int nLen);
     /**
      * @brief slot_ChatRq 好友发来聊天请求
@@ -181,6 +182,8 @@ private:
      * @brief generateResourceMD5SumMap 将资源文件中的icon做MD5信息摘要
      */
     // void generateResourceMD5SumMap();
+
+    void connectMainWindowSignals();
 private:
     /// 协议映射表
     std::map<int, std::function<void(unsigned long, const char*, int)> > m_deal_items;

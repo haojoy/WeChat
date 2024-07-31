@@ -1,13 +1,25 @@
 #include "logindialog.h"
 #include "ui_logindialog.h"
 #include "QMessageBox"
+#include <QFile>
 
 LoginDialog::LoginDialog(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::LoginDialog)
 {
     ui->setupUi(this);
-    setWindowTitle("登录&注册");
+    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowSystemMenuHint);
+    //setWindowTitle("登录&注册");
+
+    // 加载qss样式表
+    QFile file(":/qss/style.qss");
+    if (file.open(QFile::ReadOnly)) {
+        QString styleSheet = QLatin1String(file.readAll());
+        this->setStyleSheet(styleSheet);
+        file.close();
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to load the style sheet file.");
+    }
 }
 
 LoginDialog::~LoginDialog()
@@ -49,5 +61,23 @@ void LoginDialog::on_pb_register_clicked()
         return;
     }
     Q_EMIT SIG_RegisterCommit(username, tel, password);
+}
+
+
+void LoginDialog::on_btn_register_clicked()
+{
+    ui->tab_page->setCurrentWidget(ui->page_register);
+}
+
+
+void LoginDialog::on_btn_backlogin_clicked()
+{
+    ui->tab_page->setCurrentWidget(ui->page_login);
+}
+
+
+void LoginDialog::on_btn_closedialog_clicked()
+{
+    Q_EMIT SIG_CloseLoginDialog();
 }
 

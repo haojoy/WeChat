@@ -19,12 +19,18 @@
 - 安装`muduo`库
 
   git clone https://github.com/chenshuo/muduo.git
+
   cd muduo/
+
   mkdir -p build/release
+
   cd build/release/
+
   cmake ../..
+
   make -j4
-   sudo make install
+
+  sudo make install
 
 - 安装`Nginx`
 

@@ -46,5 +46,9 @@
         <file>images/icon/avatar2.png</file>
         <file>qss/style.qss</file>
         <file>images/icon/logo.ico</file>
+        <file>images/eye_off.png</file>
+        <file>images/eye_on.png</file>
+        <file>images/loginWndBack.jpg</file>
+        <file>images/btn_close.png</file>
     </qresource>
 </RCC>

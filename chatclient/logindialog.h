@@ -2,6 +2,7 @@
 #define LOGINDIALOG_H
 
 #include <QDialog>
+#include <QMouseEvent>
 
 namespace Ui {
 class LoginDialog;
@@ -19,6 +20,16 @@ public:
     explicit LoginDialog(QWidget *parent = nullptr);
     ~LoginDialog();
 
+protected:
+    //实现窗口可拖动
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+
+    void keyPressEvent(QKeyEvent *event) override;
+
+private:
+    void showErrorTips(QString text, QString state = "error");
 private slots:
     void on_pb_commit_clicked();
 
@@ -32,6 +43,9 @@ private slots:
 
 private:
     Ui::LoginDialog *ui;
+
+    bool dragging;
+    QPoint dragStartPosition;
 };
 
 #endif // LOGINDIALOG_H

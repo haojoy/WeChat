@@ -20,6 +20,7 @@ HEADERS += \
     $$PWD/contactwidget.h \
     $$PWD/historyitem.h \
     $$PWD/newfrienditem.h \
+    $$PWD/passwordedit.h \
     $$PWD/receivewidget.h \
     $$PWD/senderwidget.h \
     $$PWD/userinfoshowdialog.h

@@ -12,6 +12,7 @@ public:
     // 根据用户号码查询用户信息
     User query(int id);
 
+    User query(string username);
     // 更新用户的状态信息
     bool updateState(User user);
 

@@ -2,7 +2,9 @@ HEADERS += \
     $$PWD/fileTransferProtocol.h \
     $$PWD/fileutil.h \
     $$PWD/jsonutils.h \
-    $$PWD/md5.h
+    $$PWD/logger.h \
+    $$PWD/md5.h \
+    $$PWD/json.hpp
 
 SOURCES += \
     $$PWD/fileutil.cpp \

@@ -7,6 +7,7 @@ class INetMediator : public QObject
     Q_OBJECT
 signals:
     void SIG_ReadyData( unsigned long lSendIP , const char* buf , int nlen );
+    void SIG_ReportNetworkStatus(QString errdesc, QString errstatus);
 public:
     INetMediator(){};
     virtual ~INetMediator(){};
@@ -34,6 +35,8 @@ public:
          * @param nLen 数据大小
         */
     virtual void DealData(unsigned long lSendIP, const char* buf, int nLen) = 0;
+
+    virtual void reportNetworkStatus(QString errdesc, QString errstatus) = 0;
 protected:
     INet* m_pNet;
 };

@@ -440,7 +440,7 @@ void addfriend(int clientfd, string str)
 {
     int friendid = atoi(str.c_str());
     json js;
-    js["msgid"] = ADD_FRIEND_MSG;
+    js["msgid"] = ADD_FRIEND_REQ;
     js["id"] = g_currentUser.getId();
     js["friendid"] = friendid;
     string buffer = js.dump();

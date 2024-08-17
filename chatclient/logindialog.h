@@ -20,6 +20,7 @@ public:
     explicit LoginDialog(QWidget *parent = nullptr);
     ~LoginDialog();
 
+    void showErrorTips(QString text, QString state = "error");
 protected:
     //实现窗口可拖动
     void mousePressEvent(QMouseEvent *event) override;
@@ -29,7 +30,7 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
 
 private:
-    void showErrorTips(QString text, QString state = "error");
+
 private slots:
     void on_pb_commit_clicked();
 

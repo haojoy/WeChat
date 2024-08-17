@@ -12,6 +12,7 @@
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QResource>
+#include "Common/logger.h"
 
 MainWindow::MainWindow(QWidget *parent, int id)
     : QMainWindow(parent)
@@ -46,12 +47,12 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::setIcon(QString &resPath)
+void MainWindow::setIcon(const QString &resPath)
 {
     QIcon icon(resPath);
     QPixmap pixmap = icon.pixmap(QSize(40, 40));
     if (pixmap.isNull()) {
-        qDebug() << "pixmap is NUll";
+        DEBUG << "pixmap is Null";
         return;
     }
     ui->headBtn->setIcon(QIcon(pixmap));
@@ -63,7 +64,7 @@ void MainWindow::setAvatar(QByteArray &byteArray)
     QPixmap pixmap;
     pixmap.loadFromData(byteArray);
     if (pixmap.isNull()) {
-        qDebug() << __func__ << "头像数据错误";
+        DEBUG << "头像数据错误";
         return;
     }
     ui->headBtn->setIcon(QIcon(pixmap));
@@ -296,7 +297,7 @@ bool MainWindow::eventFilter(QObject *sender, QEvent *event)
     if (event->type() == QEvent::MouseButtonPress) { // 鼠标点击事件
         QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
         if (m_userInfoDialog && !m_userInfoDialog->geometry().contains(mouseEvent->pos())) {
-            qDebug() << "鼠标点击事件: 点击其他区域";
+            // qDebug() << "鼠标点击事件: 点击其他区域";
             m_userInfoDialog->hide();
         }
     }

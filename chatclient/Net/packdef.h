@@ -615,3 +615,75 @@ struct STRU_UPDATE_AVATAR_COMPLETE_NOTIFY {
     char fileMd5[_MD5_STR_SIZE];
     char avatarId[_FILEID_STR_SIZE];
 };
+
+
+#include <string>
+#include "Common/json.hpp"
+using json = nlohmann::json;
+using namespace std;
+/*
+server和client的公共文件
+*/
+
+enum RspStatus{
+    REG_OK,
+    REG_USER_EXIST,
+    REG_ERR,
+
+    LOGIN_OK,
+    LOGIN_ONLINE,
+    LOGIN_INVALID_USERORPWD,
+
+    GET_FRIEND_INFO_SUCCESS,
+    GET_FRIEND_INFO_NO_THIS_USER,
+
+    ADD_FRIEND_ACCEPT,
+};
+
+
+enum MessageType
+{
+    LOGIN_MSG = 1, // 登录消息
+    LOGIN_MSG_ACK, // 登录响应消息
+    LOGINOUT_MSG, // 注销消息
+    REG_MSG, // 注册消息
+    REG_MSG_ACK, // 注册响应消息
+    ONE_CHAT_MSG, // 聊天消息
+    ADD_FRIEND_REQ, // 添加好友消息
+    ADD_FRIEND_RSP,
+
+    CREATE_GROUP_MSG, // 创建群组
+    ADD_GROUP_MSG, // 加入群组
+    GROUP_CHAT_MSG, // 群聊天
+
+    GET_FRIEND_INFO_REQ, // 获取待添加好友的信息
+    GET_FRIEND_INFO_RSP,
+
+    REFRESH_FRIEND_LIST,
+
+};
+
+struct RegisterMessage {
+    string msgid;
+    string name;
+    string password;
+
+    // 将结构体转换为 JSON 对象
+    json to_json() const {
+        return json{{"msgid", msgid}, {"name", name}, {"password", password}};
+    }
+
+    // 从 JSON 对象创建结构体实例
+    static RegisterMessage from_json(const json &js) {
+        RegisterMessage msg;
+        try {
+            msg.msgid = js.at("msgid").get<string>();
+            msg.name = js.at("name").get<string>();
+            msg.password = js.at("password").get<string>();
+        } catch (const json::exception& e) {
+            // 处理 JSON 解析错误
+            throw std::runtime_error("Failed to parse RegisterMessage from JSON: " + std::string(e.what()));
+        }
+        return msg;
+    }
+};

@@ -14,6 +14,8 @@ public:
 	Connection();
 	// 释放数据库连接资源
 	~Connection();
+	// 数据库不存在则创建
+	bool createDBTables();
 	// 连接数据库
 	bool connect(string ip, 
 		unsigned short port, 
@@ -31,6 +33,7 @@ public:
 	// 返回存活的时间
 	clock_t getAliveeTime()const { return clock() - _alivetime; }
 private:
+	static int createDBCnt_;
 	MYSQL *_conn; // 表示和MySQL Server的一条连接
 	clock_t _alivetime; // 记录进入空闲状态后的起始存活时间
 };

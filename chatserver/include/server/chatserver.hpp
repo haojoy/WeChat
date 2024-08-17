@@ -11,9 +11,7 @@ class ChatServer
 {
 public:
     // 初始化聊天服务器对象
-    ChatServer(EventLoop *loop,
-               const InetAddress &listenAddr,
-               const string &nameArg);
+    ChatServer(EventLoop *loop, const InetAddress &listenAddr);
 
     // 启动服务
     void start();

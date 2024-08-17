@@ -31,7 +31,7 @@ void ContactListWidget::on_cancelBtn_clicked() // 转到好友列表界面按钮
 
 void ContactListWidget::on_lineEdit_textChanged(const QString &arg1) // 添加好友输入框文本变化事件
 {
-    qDebug()<< __func__;
+    // qDebug()<< __func__;
     // 应该在Widget中显示Button用于当作确认
     ui->searchStackedWidget->setCurrentIndex(0);
     ui->label_confirm->setText(arg1);

@@ -8,6 +8,9 @@
 #include <QObject>
 // #pragma comment (lib, "ws2_32.lib")
 
+constexpr const char* Normal = "normal";
+constexpr const char* Error = "error";
+
 namespace net {
 class INet:public QObject
 {

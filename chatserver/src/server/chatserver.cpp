@@ -5,15 +5,15 @@
 #include <iostream>
 #include <functional>
 #include <string>
+#include <muduo/base/Logging.h>
 using namespace std;
 using namespace placeholders;
 using json = nlohmann::json;
 
 // 初始化聊天服务器对象
 ChatServer::ChatServer(EventLoop *loop,
-                       const InetAddress &listenAddr,
-                       const string &nameArg)
-    : _server(loop, listenAddr, nameArg), _loop(loop)
+                       const InetAddress &listenAddr)
+    : _server(loop, listenAddr, "ChatServer"), _loop(loop)
 {
     // 注册链接回调
     _server.setConnectionCallback(std::bind(&ChatServer::onConnection, this, _1));
@@ -29,6 +29,7 @@ ChatServer::ChatServer(EventLoop *loop,
 void ChatServer::start()
 {
     _server.start();
+    LOG_INFO << "[ChatServer] started and listening on " << _server.ipPort();
 }
 
 // 上报链接相关信息的回调函数
@@ -53,7 +54,13 @@ void ChatServer::onMessage(const TcpConnectionPtr &conn,
     cout << buf << endl;
 
     // 数据的反序列化
-    json js = json::parse(buf);
+    json js;
+    try{
+        js = json::parse(buf);
+    }catch(std::exception& e) {
+        LOG_ERROR << "onMessage json parse error: " << e.what();
+        return;
+    }
     // 达到的目的：完全解耦网络模块的代码和业务模块的代码
     // 通过js["msgid"] 获取=》业务handler=》conn  js  time
     auto msgHandler = ChatService::instance()->getHandler(js["msgid"].get<int>());

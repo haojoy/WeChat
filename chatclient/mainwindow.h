@@ -55,7 +55,7 @@ public:
     const QString& getAvatarId() const { return m_avatarId; }
     void setAvatarId(const QString& id) { m_avatarId = id;}
 public:
-    void setIcon(QString& resPath);
+    void setIcon(const QString& resPath);
     void setAvatar(QByteArray& byteArray);
 public slots:
     void onChatMessageReceived(int id, QString message);

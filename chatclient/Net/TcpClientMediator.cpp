@@ -34,4 +34,9 @@ void TcpClientMediator::DealData(unsigned long lSendIP, const char* buf, int nLe
     //printBuffer(buf,nLen);
     Q_EMIT SIG_ReadyData(lSendIP, buf, nLen);
 }
+void TcpClientMediator::reportNetworkStatus(QString errdesc, QString errstatus)
+{
+    // printBuffer(buf,nLen);
+    Q_EMIT SIG_ReportNetworkStatus(errdesc, errstatus);
+}
 }

@@ -7,7 +7,7 @@
 #include <QTimer>
 #include <QApplication>
 #include <QtCore/qstring.h>
-
+#include "Common/logger.h"
 QString Kernel::m_username;
 QString Kernel::m_avatarUrl = ":/images/icon/5.png";
 QString Kernel::m_avatarMd5;
@@ -19,25 +19,29 @@ Kernel::Kernel() : m_uuid(0), m_state(0)
     m_fileUtil = new FileUtil;
     m_pClient = new net::TcpClientMediator;
     connect(m_pClient, SIGNAL(SIG_ReadyData(ulong,const char*,int)), this, SLOT(slot_DealData(ulong,const char*,int)));
-    if (!startServer()) {
-        qDebug() << "连接服务器失败!";
-    }
+    connect(m_pClient, SIGNAL(SIG_ReportNetworkStatus(QString,QString)), this, SLOT(slot_HandleReportNetworkStatus(QString, QString)));
+
     // 注册登录界面注册
     m_loginDialog = new LoginDialog;
-    connect(m_loginDialog, SIGNAL(SIG_LoginCommit(QString, QString)), this, SLOT(slot_LoginCommit(QString, QString)));
+    connect(m_loginDialog, SIGNAL(SIG_LoginCommit(QString,QString)), this, SLOT(slot_LoginCommit(QString, QString)));
     connect(m_loginDialog, SIGNAL(SIG_RegisterCommit(QString,QString,QString)), this, SLOT(slot_RegisterCommit(QString,QString,QString)));
     connect(m_loginDialog, SIGNAL(SIG_CloseLoginDialog()), this, SLOT(slot_CloseLoginDialog()));
     m_loginDialog->showNormal();
 
+    if (!startServer()) {
+        DEBUG << "连接服务器失败!";
+        //m_loginDialog->showErrorTips("连接服务器失败!");
+    }
+
     m_mainWnd = new MainWindow(nullptr, m_uuid); // m_uuid还未被正确设定值
     // 发送聊天信息
-    connect(m_mainWnd, SIGNAL(sendChatMessage(int, QString)), this, SLOT(slot_SendChatMsg(int, QString)));
+    connect(m_mainWnd, SIGNAL(sendChatMessage(int,QString)), this, SLOT(slot_SendChatMsg(int, QString)));
     // 发送聊天文件
     //connect(m_mainWnd, SIGNAL(sendChatFile(int, QString, uint64_t)), this, SLOT(slot_SendFile(int, QString, uint64_t)));
     // 发送获取好友信息
     connect(m_mainWnd, SIGNAL(sendGetFriendInfo(QString)), this, SLOT(slot_GetFriendInfo(QString)));
     // 发送添加好友请求
-    connect(m_mainWnd, SIGNAL(sendAddFriendRequest(QString, int)), this, SLOT(slot_addFriendRequest(QString, int)));
+    connect(m_mainWnd, SIGNAL(sendAddFriendRequest(QString,int)), this, SLOT(slot_addFriendRequest(QString, int)));
     // 发送接受添加回复
     connect(m_mainWnd, SIGNAL(sendFriendReqAccepted(int)), this, SLOT(slot_FriendReqAccepted(int)));
     // 发送修改头像信息
@@ -60,15 +64,16 @@ void Kernel::closeServer() {
 
 void Kernel::setProtocolMap() {
 #define XX(str, func) {\
-    auto call = std::bind(&Kernel::func, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3); \
+    auto call = std::bind(&Kernel::func, this, std::placeholders::_1); \
         m_deal_items.insert({ str, call });}
 
-XX(_DEF_PACK_LOGIN_RS, slot_LoginRs);
-XX(_DEF_PACK_REGISTER_RS, slot_RegisterRs);
-XX(_DEF_PACK_FRIEND_INFO, slot_FriendInfoRs);
-XX(_DEF_PROTOCOL_GETUSERINFO_RS, slot_dealGetUserInfoRs);
-XX(_DEF_PACK_ADDFRIEND_RQ, slot_AddFriendRq);
-XX(_DEF_PACK_CHAT_RQ, slot_ChatRq);
+
+XX(LOGIN_MSG_ACK, slot_LoginRs);
+XX(REG_MSG_ACK, slot_RegisterRs);
+XX(REFRESH_FRIEND_LIST, slot_FriendInfoRs);
+XX(GET_FRIEND_INFO_RSP, slot_dealGetUserInfoRs);
+XX(ADD_FRIEND_REQ, slot_AddFriendRq);
+XX(ONE_CHAT_MSG, slot_ChatRq);
 XX(UPDATE_AVATAR_RS, slot_dealUpdateAvatarRs);
 #undef XX
 }
@@ -98,175 +103,215 @@ void Kernel::DestroyInstance() {
 }
 
 void Kernel::slot_DealData(unsigned long lSendIP, const char* buf, int nLen) {
-    int header_type = *(int*)buf;
-    qDebug() << __func__ << " : " << header_type;
-    if (header_type >= _DEF_PROTOCOL_BASE && header_type <= _DEF_PROTOCOL_BASE + _DEF_PROTOCOL_COUNT)
-        m_deal_items[header_type](lSendIP, buf, nLen);
-}
+    try {
+        json jsonObject = json::parse(string(buf, nLen));
+        int msgid = jsonObject["msgid"].get<int>();
+        m_deal_items[msgid](jsonObject);
 
-void Kernel::slot_LoginRs(unsigned long lSendIP, const char* buf, int nLen) {
-    Q_UNUSED(lSendIP);
-    Q_UNUSED(nLen);
-    STRU_LOGIN_RS* rs = (STRU_LOGIN_RS *)buf;
-    qDebug() << __func__ << "  " << rs->result << "  " << rs->userid;
-    switch(rs->result) {
-    case user_not_exist:
-        QMessageBox::about(this->m_loginDialog, "提示", "登录失败，用户不存在");
-        break;
-    case password_error:
-        QMessageBox::about( this->m_loginDialog , "提示", "登录失败,密码错误");
-        break;
-    case login_wait:
-        m_uuid = rs->userid;
-        break;
-    case login_success:
-        {
-            qDebug() << "login_success";
-            m_loginDialog->hide();
-
-            m_mainWnd->show(); // 显示主窗口
-            m_uuid = rs->userid;
-        }
-        break;
+    }catch (const std::exception& e) {
+        DEBUG << "Error processing data: " << e.what();
     }
 }
 
-void Kernel::slot_RegisterRs(unsigned long lSendIP, const char* buf, int nLen) {
-    Q_UNUSED(lSendIP);
-    Q_UNUSED(nLen);
-    STRU_REGISTER_RS* rs = (STRU_REGISTER_RS*)buf;
-    switch(rs->result) {
-    case user_is_exist:
-        QMessageBox::about(this->m_loginDialog, "提示", "注册失败, 用户已存在");
+void Kernel::slot_HandleReportNetworkStatus(QString errdesc, QString errstatus)
+{
+    m_loginDialog->showErrorTips(errdesc, errstatus);
+}
+
+void Kernel::slot_LoginRs(json jsonObject) {
+    int loginstatus = jsonObject["errno"].get<int>();
+    switch(loginstatus) {
+    case LOGIN_OK:
+    {
+        m_loginDialog->hide();
+        m_mainWnd->show(); // 显示主窗口
+        m_uuid = jsonObject["userid"].get<int>();
+        m_username = QString::fromStdString(jsonObject["name"].get<std::string>());
+    }
+    break;
+    case LOGIN_ONLINE:
+        QMessageBox::about(this->m_loginDialog, "提示", "用户已在线");
         break;
-    case register_success:
+    case LOGIN_INVALID_USERORPWD:
+        QMessageBox::about(this->m_loginDialog, "错误", "用户名或密码错误");
+        break;
+    default:
+        DEBUG << "invalid loginstatus: " <<loginstatus;
+    }
+    m_loginDialog->showErrorTips("");
+}
+
+void Kernel::slot_RegisterRs(json jsonObject) {
+
+    int regstatus = jsonObject["errno"].get<int>();
+    switch(regstatus) {
+    case REG_OK:
         QMessageBox::about(this->m_loginDialog, "提示", "注册成功");
         break;
+    case REG_USER_EXIST:
+        QMessageBox::about(this->m_loginDialog, "提示", "用户已存在");
+        break;
+    case REG_ERR:
+        QMessageBox::about(this->m_loginDialog, "错误", "注册失败");
+        break;
+    default:
+        DEBUG << "regstatus: " <<regstatus;
     }
 }
 
 void Kernel::slot_LoginCommit(QString username, QString password) {
+    m_loginDialog->showErrorTips("正在登录...", Normal);
+    if(!startServer()){
+        m_loginDialog->showErrorTips("网络异常，请稍后重试", Error);
+    }
     std::string strUserName = username.toStdString();
     std::string strPassWord = password.toStdString();
-    STRU_LOGIN_RQ rq;
-    strcpy_s(rq.username, strUserName.c_str());
-    strcpy_s(rq.password, strPassWord.c_str());
-    // qstrncpy(rq.username, strUserName.c_str(), sizeof(rq.username));
-    // qstrncpy(rq.password, strPassWord.c_str(), sizeof(rq.password));
-    m_pClient->SendData(0, (char*)&rq, sizeof(rq));
+    json js;
+    js["msgid"] = LOGIN_MSG;
+    js["name"] = strUserName;
+    js["password"] = strPassWord;
+    string request = js.dump();
+    m_pClient->SendData(0, request.c_str(), request.size());
 }
 
 void Kernel::slot_RegisterCommit(QString username, QString tel, QString password) {
+    if(!startServer()){
+        m_loginDialog->showErrorTips("注册失败,网络异常，请稍后重试", Error);
+    }
     std::string strUserName = username.toStdString();
     std::string strTel = tel.toStdString();
     std::string strPassWord = password.toStdString();
-    STRU_REGISTER_RQ rq;
-    strcpy_s(rq.username, strUserName.c_str());
-    strcpy_s(rq.tel, strTel.c_str());
-    strcpy_s(rq.password, strPassWord.c_str());
 
-    m_pClient->SendData(0, (char*)&rq, sizeof(rq));
+    json js;
+    js["msgid"] = REG_MSG;
+    js["name"] = strUserName;
+    js["tel"] = strTel;
+    js["password"] = strPassWord;
+    string request = js.dump();
+    m_pClient->SendData(0, request.c_str(), request.size());
+
+
 }
 void Kernel::slot_CloseLoginDialog(){
     QTimer::singleShot(0, QCoreApplication::instance(), &QCoreApplication::quit); // 退出事件循环
 }
 
-void Kernel::slot_FriendInfoRs(unsigned long lSendIP, const char* buf, int nLen) {
-    Q_UNUSED(lSendIP);
-    Q_UNUSED(nLen);
-    STRU_FRIEND_INFO* info = (STRU_FRIEND_INFO*)buf;
-    QString username = QString::fromStdString(info->username);
+void Kernel::slot_FriendInfoRs(json jsonObject) {
+
+    int userid = jsonObject["userid"].get<int>();
+    QString username = QString::fromStdString(jsonObject["username"]);
+    // int state = jsonObject["state"].get<int>();
+    DEBUG << "m_uuid: "  << m_uuid << "userid: " << userid;
     QByteArray avatarByteArray;
     QString avatarPath;
-    FileUtil::download(avatarByteArray, avatarPath, info->avatarInfo.filePath, info->avatarInfo.fileSize, info->avatarInfo.fileId, info->avatarInfo.md5);
-    if(m_uuid == info->uuid) { // 该用户信息是自己的
-        m_username = info->username;
-        m_feeling = info->feeling;
-        m_state = info->state;
+    // FileUtil::download(avatarByteArray, avatarPath, info->avatarInfo.filePath, info->avatarInfo.fileSize, info->avatarInfo.fileId, info->avatarInfo.md5);
+    if(m_uuid == userid) { // 该用户信息是自己的
+        m_username = username;
+        //m_feeling = info->feeling;
+        //m_state = state;
         m_avatarUrl = avatarPath;
         m_mainWnd->setAvatar(avatarByteArray);
         return;
     }
-    if (!m_mainWnd->getChatListWidget()->isContainsKey(info->uuid)) { // 用户信息是好友的, 且还没添加到map中
+    if (!m_mainWnd->getChatListWidget()->isContainsKey(userid)) { // 用户信息是好友的, 且还没添加到map中
         QList<Message> messages1;
-        m_mainWnd->getChatListWidget()->AddItem(new Friend(info->uuid, username, avatarPath, true, "20/11/28", 0, messages1));
+        m_mainWnd->getChatListWidget()->AddItem(new Friend(userid, username, avatarPath, true, "20/11/28", 0, messages1));
     }
 }
 
-void Kernel::slot_ChatRq(unsigned long lSendIP, const char* buf, int nLen) {
-    Q_UNUSED(lSendIP);
-    Q_UNUSED(nLen);
-    STRU_CHAT_RQ* rq = (STRU_CHAT_RQ*)buf; // 对方好友发来的聊天数据包(userid是好友的id)
-    auto item = m_mainWnd->getChatListWidget()->getItemById(rq->userid);
+void Kernel::slot_SendChatMsg(int id, QString content) {
+    json js;
+    js["msgid"] = ONE_CHAT_MSG;
+    js["senderid"] = m_uuid;
+    js["receiverid"] = id;
+    js["msginfo"] = content.toStdString();
+    QString currentTime = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
+    js["createtime"] = currentTime.toStdString();
+    string request = js.dump();
+    m_pClient->SendData(0, request.c_str(), request.size());
+}
+
+void Kernel::slot_ChatRq(json jsonObject) {
+    int senderid = jsonObject["senderid"].get<int>();
+    string msgcont = jsonObject["msginfo"];
+    string createtime = jsonObject["createtime"];
+    auto item = m_mainWnd->getChatListWidget()->getItemById(senderid);
     if(item) {
-        Message message(QString::fromStdString(rq->content), QString::fromStdString(rq->createTime), Sender);
+        Message message(QString::fromStdString(msgcont), QString::fromStdString(createtime), Sender);
         item->updateContent(message);
     }
+
 }
 
-void Kernel::slot_AddFriendRq(unsigned long lSendIP, const char *buf, int nLen)
+void Kernel::slot_AddFriendRq(json jsonObject)
 {
-    // 收到他人的添加好友声请, 在好友列表的RightBar添加好友信息
-    Q_UNUSED(lSendIP);
-    Q_UNUSED(nLen);
-    STRU_ADD_FRIEND_RQ* rq = (STRU_ADD_FRIEND_RQ*)buf;
-    qDebug() << __func__ << "好友id:" << rq->senderId << "名称：" << rq->senderName << "请求添加好友";
-    m_mainWnd->getContactWidget()->setItem(rq->senderId); // rq.senderId是请求添加好友的用户id
-    m_mainWnd->getContactWidget()->getItem(rq->senderId)->setId(rq->senderId);
-    m_mainWnd->getContactWidget()->getItem(rq->senderId)->setName(QString::fromStdString(rq->senderName));
+    int senderid = jsonObject["senderid"].get<int>();
+    string sendername = jsonObject["sendername"];
+    DEBUG << "好友id:" << senderid << "名称：" << sendername.c_str() << "请求添加好友";
+    m_mainWnd->getContactWidget()->setItem(senderid); // rq.senderId是请求添加好友的用户id
+    m_mainWnd->getContactWidget()->getItem(senderid)->setId(senderid);
+    m_mainWnd->getContactWidget()->getItem(senderid)->setName(QString::fromStdString(sendername));
 
     // 显示sender头像
     QByteArray byteArray;
     QString avatarPath;
-    FileUtil::download(byteArray, avatarPath, rq->senderAvatarInfo.filePath, rq->senderAvatarInfo.fileSize, rq->senderAvatarInfo.fileId, rq->senderAvatarInfo.md5);
+    //FileUtil::download(byteArray, avatarPath, rq->senderAvatarInfo.filePath, rq->senderAvatarInfo.fileSize, rq->senderAvatarInfo.fileId, rq->senderAvatarInfo.md5);
     QPixmap pixmap;
     pixmap.loadFromData(byteArray);
     if (pixmap.isNull()) {
         qDebug() << "头像数据错误";
-        return;
+        // return;
     }
-    m_mainWnd->getContactWidget()->getItem(rq->senderId)->setIcon(pixmap);
-    m_mainWnd->getContactWidget()->addNewFriend(rq->senderId);
+    m_mainWnd->getContactWidget()->getItem(senderid)->setIcon(pixmap);
+    m_mainWnd->getContactWidget()->addNewFriend(senderid);
+
 }
 
-
-
-void Kernel::slot_dealGetUserInfoRs(unsigned long lSendIP, const char *buf, int nLen)
+void Kernel::slot_GetFriendInfo(QString username) // 根据用户想要添加的好友获取好友信息
 {
-    Q_UNUSED(lSendIP);
-    Q_UNUSED(nLen);
-    STRU_GET_USERINFO_RS* rs = (STRU_GET_USERINFO_RS*)buf;
+    std::string strUserName = username.toStdString();
+    json js;
+    js["msgid"] = GET_FRIEND_INFO_REQ;
+    js["name"] = strUserName;
+    string request = js.dump();
+    m_pClient->SendData(0, request.c_str(), request.size());
+}
 
-    switch (rs->result) {
-    case STRU_GET_USERINFO_RS::NO_THIS_USER:
-        // 显示QStackedWidget的Index为1
-        qDebug() << rs->result << " " << "no_this_user";
+void Kernel::slot_dealGetUserInfoRs(json jsonObject)
+{
+    int getinfostatus = jsonObject["errno"].get<int>();
+    switch(getinfostatus) {
+    case GET_FRIEND_INFO_NO_THIS_USER:
         m_mainWnd->getContactList()->modifySearchStackedWidgetIndex();
         break;
-    case STRU_GET_USERINFO_RS::GETINFO_SUCCESS:
-        // 该人存在, RigBar显示信息
-        qDebug() << rs->result << " " << "getinfo_success";
-        m_mainWnd->getUserInfoDialog()->setUserName(QString::fromStdString(rs->userName));
-        m_mainWnd->getUserInfoDialog()->setUserId(rs->userId);
+    case GET_FRIEND_INFO_SUCCESS:
+    {
+        m_mainWnd->getUserInfoDialog()->setUserName(QString::fromStdString(jsonObject["name"]));
+        m_mainWnd->getUserInfoDialog()->setUserId(jsonObject["userid"].get<int>());
         // download头像
         QByteArray byteArray;
-        QString temp;
-        FileUtil::download(byteArray, temp, rs->filePath, rs->fileSize, rs->fileId, rs->fileMd5);
-
+        //QString temp;
+        //FileUtil::download(byteArray, temp, rs->filePath, rs->fileSize, rs->fileId, rs->fileMd5);
         m_mainWnd->getUserInfoDialog()->setUserAvatar(byteArray);
         QPoint windowPos = m_mainWnd->mapToGlobal(QPoint(0, 0));
         m_mainWnd->getUserInfoDialog()->move(windowPos.x()+305, windowPos.y()+65);
         m_mainWnd->getUserInfoDialog()->show();
+    }
+    break;
+    default:
         break;
     }
 }
 
-void Kernel::slot_dealUpdateAvatarRs(unsigned long lSendIP, const char *buf, int nLen)
+void Kernel::slot_dealUpdateAvatarRs(json jsonObject)
 {
+    return;
+    /*
     Q_UNUSED(lSendIP);
     Q_UNUSED(nLen);
     qDebug() << __func__;
     STRU_UPDATE_AVATAR_RS* rs = (STRU_UPDATE_AVATAR_RS*)buf;
+    DEBUG <<  "result: " <<rs->result << "path: " <<  rs->uploadPath << "avatarId: " <<  rs->avatarId;
     if (rs->result == rs->NOTNEEDUPLOAD) { // 服务器有该头像无需上传
         qDebug() << __func__ << "服务器有该头像无需上传";
         m_mainWnd->setAvatarId(QString::fromUtf8(rs->avatarId));
@@ -287,36 +332,19 @@ void Kernel::slot_dealUpdateAvatarRs(unsigned long lSendIP, const char *buf, int
         strcpy_s(notify.fileMd5, m_avatarMd5.toStdString().c_str());
         m_pClient->SendData(0, (char*)&notify, sizeof(notify));
     }
-}
-
-void Kernel::slot_SendChatMsg(int id, QString content) {
-    STRU_CHAT_RQ rq;
-    rq.userid = m_uuid;
-    rq.friendid = id;
-    std::string strContent = content.toStdString();
-    strcpy_s(rq.content,strContent.c_str());
-    // qDebug() << __func__ << rq.content;
-    m_pClient->SendData(0, (char*)&rq, sizeof(rq));
-}
-
-void Kernel::slot_GetFriendInfo(QString userName) // 根据用户想要添加的好友获取好友信息
-{
-    STRU_GET_USERINFO_RQ rq;
-    strcpy_s(rq.userName, userName.toStdString().c_str());
-    strcpy_s(rq.senderName, m_username.toStdString().c_str());
-    rq.senderId = m_uuid;
-    m_pClient->SendData(0, (char*)&rq, sizeof(rq));
+*/
 }
 
 void Kernel::slot_addFriendRequest(QString friendname, int friendId)
 {
-    STRU_ADD_FRIEND_RQ rq;
-    strcpy_s(rq.receiverName, friendname.toStdString().c_str());
-    strcpy_s(rq.senderName, m_username.toStdString().c_str());
-    rq.senderId = m_uuid;
-    rq.receiverId = friendId;
-    /// 服务器添加头像信息
-    m_pClient->SendData(0, (char*)&rq, sizeof(rq));
+    json js;
+    js["msgid"] = ADD_FRIEND_REQ;
+    js["senderid"] = m_uuid;
+    js["sendername"] = m_username.toStdString();
+    js["receiverid"] = friendId;
+    js["receivername"] = friendname.toStdString();
+    string request = js.dump();
+    m_pClient->SendData(0, request.c_str(), request.size());
 }
 
 void Kernel::slot_FriendReqAccepted(int id) // 发送添加好友回复
@@ -326,12 +354,14 @@ void Kernel::slot_FriendReqAccepted(int id) // 发送添加好友回复
     // QList<Message> messages1;
     //m_mainWnd->getChatListWidget()->AddItem(new Friend(id, username, ":/images/icon/2.png", true, "20/11/28", 0, messages1));
     // 告知好友同意
-    STRU_ADD_FRIEND_RS rs;
-    rs.receiverId = id;
-    rs.senderId = m_uuid;
-    strcpy(rs.senderName, m_username.toStdString().c_str());
-    rs.result = rs.ADD_SUCCESS;
-    m_pClient->SendData(0, (char*)&rs, sizeof(rs));
+
+    json js;
+    js["msgid"] = ADD_FRIEND_RSP;
+    js["senderid"] = m_uuid;
+    js["receiverid"] = id;
+    js["result"] = ADD_FRIEND_ACCEPT;
+    string request = js.dump();
+    m_pClient->SendData(0, request.c_str(), request.size());
 }
 
 void Kernel::slot_ChangeUserIcon()

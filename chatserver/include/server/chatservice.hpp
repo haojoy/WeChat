@@ -29,11 +29,16 @@ public:
     // 处理登录业务
     void login(const TcpConnectionPtr &conn, json &js, Timestamp time);
     // 处理注册业务
-    void reg(const TcpConnectionPtr &conn, json &js, Timestamp time);
+    void userRegister(const TcpConnectionPtr &conn, json &js, Timestamp time);
     // 一对一聊天业务
     void oneChat(const TcpConnectionPtr &conn, json &js, Timestamp time);
+
+    // 获取待添加好友信息
+    void getFriendInfoReq(const TcpConnectionPtr &conn, json &js, Timestamp time);
+
     // 添加好友业务
-    void addFriend(const TcpConnectionPtr &conn, json &js, Timestamp time);
+    void addFriendReq(const TcpConnectionPtr &conn, json &js, Timestamp time);
+    void addFriendRsp(const TcpConnectionPtr &conn, json &js, Timestamp time);
     // 创建群组业务
     void createGroup(const TcpConnectionPtr &conn, json &js, Timestamp time);
     // 加入群组业务

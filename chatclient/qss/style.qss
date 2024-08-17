@@ -1,4 +1,4 @@
-QDialog {
+#LoginDialog{
     background-image: url(:/images/loginWndBack.jpg); /* 设置背景图路径 */
     background-repeat: no-repeat; /* 背景图不重复 */
     background-position: center; /* 背景图居中 */
@@ -30,7 +30,7 @@ QTabBar::tab {
     background: transparent;
     color: #FFFFFF; /* 设置字体颜色 */
     border: 1px solid white;
-    border-radius: 8px;
+    border-radius: 4px;
     font-weight: bold;
 }
 
@@ -38,6 +38,11 @@ QTabBar::tab {
     color: red;
 }
 #label_tip[state='normal']{
-    color: green;
+    color: white;
+}
+
+
+#LoginDialog QMessageBox QPushButton {
+    color: black;
 }
 

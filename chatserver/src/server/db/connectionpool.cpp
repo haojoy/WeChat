@@ -20,7 +20,16 @@ string trim(const string& str)
 
 bool ConnectionPool::loadConfigFile()
 {
-    ifstream file("./conf/mysql.conf");
+	// 设置环境变量或绝对路径
+	const char* configPath = getenv("MYSQL_CONF_PATH");
+    if (!configPath)
+    {
+        LOG_ERROR << " mysql.conf MYSQL_CONF_PATH not set!";
+        return false;
+    }
+
+    ifstream file(configPath);
+
     if (!file.is_open())
     {
         LOG_ERROR << "mysql.conf 文件不存在!";

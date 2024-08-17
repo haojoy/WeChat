@@ -33,7 +33,7 @@ void ChatWidget::setData(Friend *data)
     auto messages = data->getMessages();
     for (int i = 0; i < messages.count(); ++i) {
         auto message = messages[i];
-        qDebug() << message.getContent();
+        // qDebug() << message.getContent();
         auto item = new QListWidgetItem;
         ui->listWidget->addItem(item);
         if (message.getMsgType() == MsgType::Sender) {

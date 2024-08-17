@@ -33,6 +33,8 @@ public:
          * @param nLen 数据大小
         */
     void DealData(unsigned long lSendIP, const char* buf, int nLen) override;
+
+    void reportNetworkStatus(QString errdesc, QString errstatus) override;
 };
 }
 #endif // !__TCPCLIENTMEDIATOR_H__

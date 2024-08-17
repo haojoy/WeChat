@@ -3,6 +3,7 @@
 #include "QMessageBox"
 #include <QFile>
 #include <QStyle>
+#include "Common/logger.h"
 
 std::function<void(QWidget *)> flushtips = [](QWidget *w) {
     QStyle *style = w->style();
@@ -111,7 +112,7 @@ void LoginDialog::on_pb_commit_clicked()
         ui->pwd_lineedit->getlineEdit()->setFocus();
         return;
     }
-
+    showErrorTips("");
     Q_EMIT SIG_LoginCommit(username, password);
 }
 
@@ -153,18 +154,21 @@ void LoginDialog::on_pb_register_clicked()
         showErrorTips("两次密码输入不一致!");
         return;
     }
+    showErrorTips("");
     Q_EMIT SIG_RegisterCommit(username, tel, password);
 }
 
 
 void LoginDialog::on_btn_register_clicked()
 {
+    showErrorTips("");
     ui->tab_page->setCurrentWidget(ui->page_register);
 }
 
 
 void LoginDialog::on_btn_backlogin_clicked()
 {
+    showErrorTips("");
     ui->tab_page->setCurrentWidget(ui->page_login);
 }
 

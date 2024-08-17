@@ -1,5 +1,6 @@
 #include "chatserver.hpp"
 #include "chatservice.hpp"
+#include "fileserver.h"
 #include <iostream>
 #include <signal.h>
 using namespace std;
@@ -13,6 +14,7 @@ void resetHandler(int)
 
 int main(int argc, char **argv)
 {
+    /*
     if (argc < 3)
     {
         cerr << "command invalid! example: ./ChatServer 127.0.0.1 6000" << endl;
@@ -31,6 +33,28 @@ int main(int argc, char **argv)
 
     server.start();
     loop.loop();
+    */
+    signal(SIGINT, resetHandler);
+    // 创建两个线程来运行不同的 EventLoop
+    std::thread chatThread([]() {
+        EventLoop loopchat;
+        InetAddress chatAddr(8080);
+        ChatServer chatServer(&loopchat, chatAddr);
+        chatServer.start();
+        loopchat.loop();
+    });
+
+    // std::thread fileThread([]() {
+    //     EventLoop loopfile;
+    //     InetAddress fileAddr(8088);
+    //     FileServer fileServer(&loopfile, fileAddr);
+    //     fileServer.start();
+    //     loopfile.loop();
+    // });
+
+    // 等待两个线程结束
+    chatThread.join();
+    //fileThread.join();
 
     return 0;
 }

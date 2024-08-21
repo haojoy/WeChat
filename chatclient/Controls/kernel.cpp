@@ -9,7 +9,7 @@
 #include <QtCore/qstring.h>
 #include "Common/logger.h"
 QString Kernel::m_username;
-QString Kernel::m_avatarUrl = ":/images/icon/5.png";
+QString Kernel::m_avatarUrl = "";
 QString Kernel::m_avatarMd5;
 
 Kernel::Kernel() : m_uuid(0), m_state(0)
@@ -74,7 +74,7 @@ XX(REFRESH_FRIEND_LIST, slot_FriendInfoRs);
 XX(GET_FRIEND_INFO_RSP, slot_dealGetUserInfoRs);
 XX(ADD_FRIEND_REQ, slot_AddFriendRq);
 XX(ONE_CHAT_MSG, slot_ChatRq);
-XX(UPDATE_AVATAR_RS, slot_dealUpdateAvatarRs);
+XX(SET_AVATAR_RS, slot_dealUpdateAvatarRs);
 #undef XX
 }
 
@@ -118,14 +118,64 @@ void Kernel::slot_HandleReportNetworkStatus(QString errdesc, QString errstatus)
     m_loginDialog->showErrorTips(errdesc, errstatus);
 }
 
+void Kernel::restoreFriendList(json jsonObject) {
+    vector<User> currentUserFriendList;
+
+    if (jsonObject.contains("friends"))
+    {
+        // 初始化
+        currentUserFriendList.clear();
+
+        vector<string> vec = jsonObject["friends"];
+        for (string &str : vec)
+        {
+            json js = json::parse(str);
+            User user;
+            user.setId(js["userid"].get<int>());
+            //user.setAvatarId(js["userid"].get<int>());
+            user.setName(QString::fromStdString(js["name"]));
+            user.setState(QString::fromStdString(js["state"]));
+            currentUserFriendList.push_back(user);
+
+            QByteArray avatarByteArray;
+            QString avatarPath;
+            FileInfo fileinfo;
+
+            if (js.contains("avatarinfo")) {
+                string avatarinfo = js["avatarinfo"];
+                json fileInfo = json::parse(avatarinfo);
+                parseFileInfo(fileInfo, fileinfo);
+            }
+            FileUtil::download(avatarByteArray, avatarPath, fileinfo.filePath, fileinfo.fileSize, fileinfo.fileId, fileinfo.md5);
+            QList<Message> messages1;
+            m_mainWnd->getChatListWidget()->AddItem(new Friend(user.getId(), user.getName(), avatarPath, true, "20/11/28", 0, messages1));
+        }
+    }
+}
+
 void Kernel::slot_LoginRs(json jsonObject) {
     int loginstatus = jsonObject["errno"].get<int>();
+
     switch(loginstatus) {
     case LOGIN_OK:
     {
+        restoreFriendList(jsonObject);
+        QByteArray avatarByteArray;
+        QString avatarPath;
+        FileInfo fileinfo;
+
+        if (jsonObject.contains("avatarinfo")) {
+            string avatarinfo = jsonObject["avatarinfo"];
+            json fileInfo = json::parse(avatarinfo);
+            parseFileInfo(fileInfo, fileinfo);
+        }
+        DEBUG << fileinfo.filePath;
+        FileUtil::download(avatarByteArray, avatarPath, fileinfo.filePath, fileinfo.fileSize, fileinfo.fileId, fileinfo.md5);
+        m_mainWnd->setAvatar(avatarByteArray);
         m_loginDialog->hide();
         m_mainWnd->show(); // 显示主窗口
         m_uuid = jsonObject["userid"].get<int>();
+        m_avatarUrl = avatarPath;
         m_username = QString::fromStdString(jsonObject["name"].get<std::string>());
     }
     break;
@@ -196,15 +246,51 @@ void Kernel::slot_CloseLoginDialog(){
     QTimer::singleShot(0, QCoreApplication::instance(), &QCoreApplication::quit); // 退出事件循环
 }
 
+void Kernel::parseFileInfo(const nlohmann::json& jsonObject, FileInfo& fileinfo) {
+
+    if (jsonObject.contains("file_id")) {
+        std::string fileIdStr = jsonObject["file_id"];
+        strncpy(fileinfo.fileId, fileIdStr.c_str(), _MAX_FILE_PATH_SIZE - 1);
+        fileinfo.fileId[_MAX_FILE_PATH_SIZE - 1] = '\0';
+    }
+    if (jsonObject.contains("file_name")) {
+        std::string fileNameStr = jsonObject["file_name"];
+        strncpy(fileinfo.fileName, fileNameStr.c_str(), _MAX_FILE_PATH_SIZE - 1);
+        fileinfo.fileName[_MAX_FILE_PATH_SIZE - 1] = '\0';
+    }
+    if (jsonObject.contains("file_path")) {
+        std::string filePathStr = jsonObject["file_path"];
+        strncpy(fileinfo.filePath, filePathStr.c_str(), _MAX_FILE_PATH_SIZE - 1);
+        fileinfo.filePath[_MAX_FILE_PATH_SIZE - 1] = '\0';
+    }
+    if (jsonObject.contains("file_md5")) {
+        std::string md5Str = jsonObject["file_md5"];
+        strncpy(fileinfo.md5, md5Str.c_str(), _MD5_STR_SIZE - 1);
+        fileinfo.md5[_MD5_STR_SIZE - 1] = '\0';
+    }
+    if (jsonObject.contains("file_size")) {
+        fileinfo.fileSize = jsonObject["file_size"].get<uint64_t>();
+    }
+
+}
 void Kernel::slot_FriendInfoRs(json jsonObject) {
 
     int userid = jsonObject["userid"].get<int>();
     QString username = QString::fromStdString(jsonObject["username"]);
     // int state = jsonObject["state"].get<int>();
     DEBUG << "m_uuid: "  << m_uuid << "userid: " << userid;
+
+
+    FileInfo fileinfo;
+
+    if (jsonObject.contains("avatarinfo")) {
+        string avatarinfo = jsonObject["avatarinfo"];
+        json fileInfo = json::parse(avatarinfo);
+        parseFileInfo(fileInfo, fileinfo);
+    }
     QByteArray avatarByteArray;
     QString avatarPath;
-    // FileUtil::download(avatarByteArray, avatarPath, info->avatarInfo.filePath, info->avatarInfo.fileSize, info->avatarInfo.fileId, info->avatarInfo.md5);
+    FileUtil::download(avatarByteArray, avatarPath, fileinfo.filePath, fileinfo.fileSize, fileinfo.fileId, fileinfo.md5);
     if(m_uuid == userid) { // 该用户信息是自己的
         m_username = username;
         //m_feeling = info->feeling;
@@ -252,12 +338,17 @@ void Kernel::slot_AddFriendRq(json jsonObject)
     m_mainWnd->getContactWidget()->getItem(senderid)->setId(senderid);
     m_mainWnd->getContactWidget()->getItem(senderid)->setName(QString::fromStdString(sendername));
 
-    // 显示sender头像
-    QByteArray byteArray;
+    FileInfo fileinfo;
+    if (jsonObject.contains("avatarinfo")) {
+        string avatarinfo = jsonObject["avatarinfo"];
+        json fileInfo = json::parse(avatarinfo);
+        parseFileInfo(fileInfo, fileinfo);
+    }
+    QByteArray avatarByteArray;
     QString avatarPath;
-    //FileUtil::download(byteArray, avatarPath, rq->senderAvatarInfo.filePath, rq->senderAvatarInfo.fileSize, rq->senderAvatarInfo.fileId, rq->senderAvatarInfo.md5);
+    FileUtil::download(avatarByteArray, avatarPath, fileinfo.filePath, fileinfo.fileSize, fileinfo.fileId, fileinfo.md5);
     QPixmap pixmap;
-    pixmap.loadFromData(byteArray);
+    pixmap.loadFromData(avatarByteArray);
     if (pixmap.isNull()) {
         qDebug() << "头像数据错误";
         // return;
@@ -288,11 +379,18 @@ void Kernel::slot_dealGetUserInfoRs(json jsonObject)
     {
         m_mainWnd->getUserInfoDialog()->setUserName(QString::fromStdString(jsonObject["name"]));
         m_mainWnd->getUserInfoDialog()->setUserId(jsonObject["userid"].get<int>());
-        // download头像
-        QByteArray byteArray;
-        //QString temp;
-        //FileUtil::download(byteArray, temp, rs->filePath, rs->fileSize, rs->fileId, rs->fileMd5);
-        m_mainWnd->getUserInfoDialog()->setUserAvatar(byteArray);
+
+        FileInfo fileinfo;
+        if (jsonObject.contains("avatarinfo")) {
+            string avatarinfo = jsonObject["avatarinfo"];
+            json fileInfo = json::parse(avatarinfo);
+            parseFileInfo(fileInfo, fileinfo);
+        }
+        QByteArray avatarByteArray;
+        QString avatarPath;
+        FileUtil::download(avatarByteArray, avatarPath, fileinfo.filePath, fileinfo.fileSize, fileinfo.fileId, fileinfo.md5);
+
+        m_mainWnd->getUserInfoDialog()->setUserAvatar(avatarByteArray);
         QPoint windowPos = m_mainWnd->mapToGlobal(QPoint(0, 0));
         m_mainWnd->getUserInfoDialog()->move(windowPos.x()+305, windowPos.y()+65);
         m_mainWnd->getUserInfoDialog()->show();
@@ -305,34 +403,36 @@ void Kernel::slot_dealGetUserInfoRs(json jsonObject)
 
 void Kernel::slot_dealUpdateAvatarRs(json jsonObject)
 {
-    return;
-    /*
-    Q_UNUSED(lSendIP);
-    Q_UNUSED(nLen);
-    qDebug() << __func__;
-    STRU_UPDATE_AVATAR_RS* rs = (STRU_UPDATE_AVATAR_RS*)buf;
-    DEBUG <<  "result: " <<rs->result << "path: " <<  rs->uploadPath << "avatarId: " <<  rs->avatarId;
-    if (rs->result == rs->NOTNEEDUPLOAD) { // 服务器有该头像无需上传
-        qDebug() << __func__ << "服务器有该头像无需上传";
-        m_mainWnd->setAvatarId(QString::fromUtf8(rs->avatarId));
-    } else if (rs->result == rs->NEEDUPLOAD) { // 需要上传头像
-        qDebug() << __func__ << "需要上传头像";
-        QString remotePath = rs->uploadPath;
-        QString fileId = rs->avatarId;
+    int uploadstatus = jsonObject["errno"].get<int>();
+    string avatarId, uploadpath;
+    if (jsonObject.contains("avatarid")) {
+        avatarId = jsonObject["avatarid"];
+
+    }
+    if(jsonObject.contains("filepath")){
+        uploadpath = jsonObject["filepath"];
+    }
+
+    DEBUG <<  "result: " <<uploadstatus << "path: " <<  uploadpath.c_str() << "avatarId: " <<  avatarId.c_str();
+    if(uploadstatus == NOTNEEDUPLOAD) {
+        DEBUG << "服务器有该头像无需上传";
+        m_mainWnd->setAvatarId(QString::fromUtf8(avatarId.c_str()));
+    }else if (uploadstatus== NEEDUPLOAD) { // 需要上传头像
+        DEBUG << "需要上传头像";
+        QString remotePath = QString::fromUtf8(uploadpath.c_str());
+        QString fileId = QString::fromUtf8(avatarId.c_str());
         FileUtil::upload(remotePath, m_avatarUrl, fileId);
-        m_mainWnd->setAvatarId(QString::fromUtf8(rs->avatarId));
+        m_mainWnd->setAvatarId(QString::fromUtf8(avatarId.c_str()));
         // 告知服务器头像已经上传完成
         QFileInfo fileInfo(m_avatarUrl);
-        STRU_UPDATE_AVATAR_COMPLETE_NOTIFY notify;
-        notify.senderId = m_uuid;
-        notify.result = notify.UPLOADSUCCESS;
-        notify.fileSize = fileInfo.size();
-        strcpy_s(notify.fileName, fileInfo.fileName().toStdString().c_str());
-        strcpy_s(notify.avatarId, rs->avatarId);
-        strcpy_s(notify.fileMd5, m_avatarMd5.toStdString().c_str());
-        m_pClient->SendData(0, (char*)&notify, sizeof(notify));
+
+        json js;
+        js["msgid"] = SET_AVATAR_COMPLETE_NOTIFY;
+        js["senderId"] = m_uuid;
+        js["avatarid"] = avatarId;
+        string request = js.dump();
+        m_pClient->SendData(0, request.c_str(), request.size());
     }
-*/
 }
 
 void Kernel::slot_addFriendRequest(QString friendname, int friendId)
@@ -382,6 +482,7 @@ void Kernel::slot_ChangeUserIcon()
         writableDir.mkdir("user_icons");
     }
     QString targetFilePath = writablePath + "/user_icons/" + fileInfo.fileName();
+    DEBUG << targetFilePath;
     // 3.1 判断项目的程序数据存储目录是否已经存在该图片
     if (QFile::exists(targetFilePath)) { // 目标目录下已经存在该图片
         int i = 1;
@@ -401,13 +502,18 @@ void Kernel::slot_ChangeUserIcon()
     qDebug() << __func__ << "m_avatarUrl:" << m_avatarUrl;
     // 5. 通知服务器更改用户信息
     QFileInfo newInfo(targetFilePath);
-    STRU_UPDATE_AVATAR_RQ rq;
-    rq.senderId = m_uuid;
-    rq.fileSize = newInfo.size();
-    strcpy_s(rq.fileName, newInfo.fileName().toStdString().c_str());
-    strcpy_s(rq.oldAvatarId, m_mainWnd->getAvatarId().toStdString().c_str());
-    strcpy_s(rq.fileMd5, fileMd5.toStdString().c_str());
-    m_pClient->SendData(0, (char*)&rq, sizeof(rq));
+
+
+    json js;
+    js["msgid"] = SET_AVATAR_RQ;
+    js["senderId"] = m_uuid;
+    js["filesize"] = newInfo.size();
+    js["filename"] = newInfo.fileName().toStdString();
+    js["filemd5"] = fileMd5.toStdString();
+
+    string request = js.dump();
+    m_pClient->SendData(0, request.c_str(), request.size());
+
 }
 
 //std::string Kernel::GetFileName(const char* path) {

@@ -1,6 +1,7 @@
 #include "chatserver.hpp"
 #include "chatservice.hpp"
 #include "fileserver.h"
+#include "fileservice.h"
 #include <iostream>
 #include <signal.h>
 using namespace std;
@@ -44,17 +45,17 @@ int main(int argc, char **argv)
         loopchat.loop();
     });
 
-    // std::thread fileThread([]() {
-    //     EventLoop loopfile;
-    //     InetAddress fileAddr(8088);
-    //     FileServer fileServer(&loopfile, fileAddr);
-    //     fileServer.start();
-    //     loopfile.loop();
-    // });
+    std::thread fileThread([]() {
+        EventLoop loopfile;
+        InetAddress fileAddr(8088);
+        FileServer fileServer(&loopfile, fileAddr);
+        fileServer.start();
+        loopfile.loop();
+    });
 
     // 等待两个线程结束
     chatThread.join();
-    //fileThread.join();
+    fileThread.join();
 
     return 0;
 }

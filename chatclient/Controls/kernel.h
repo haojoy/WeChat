@@ -49,6 +49,8 @@ public slots:
 
     void slot_HandleReportNetworkStatus(QString errdesc, QString status);
 
+    void restoreFriendList(json jsonObject);
+
     void slot_LoginRs(json jsonObject);
 
     void slot_RegisterRs(json jsonObject);
@@ -58,6 +60,8 @@ public slots:
     void slot_RegisterCommit(QString username, QString tel, QString password);
 
     void slot_CloseLoginDialog();
+
+    void parseFileInfo(const nlohmann::json& jsonObject, FileInfo& fileinfo);
 
     void slot_FriendInfoRs(json jsonObject);
 

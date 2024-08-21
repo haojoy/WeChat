@@ -27,7 +27,7 @@ void ChatListWidget::AddItem(Friend *data)
 
     auto widget = new ChatListItem;             // 创建 ChatListItem 对象
     widget->setItem(data);                      // 设置 item对象Widget
-    m_mapIdToChatItem[data->getWxid()] = widget;// 设置id与item的映射
+    m_mapIdToChatItem[data->getId()] = widget;// 设置id与item的映射
     ui->listWidget->setItemWidget(item, widget);// 将 widget 设置为列表项的小部件，以便在列表中显示自定义的聊天项内容
 
     connect(widget, &ChatListItem::selected, this, &ChatListWidget::onItemSelected);

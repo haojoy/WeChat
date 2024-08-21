@@ -65,7 +65,7 @@ void ChatWidget::on_sendBtn_clicked() // 发送信息按钮
     Message message(content, QTime::currentTime().toString("hh:mm:ss"), Receive);
     Chatitem->updateFriend(message);
     // 将该信息发送出去
-    emit SIG_SendChatMsg(Chatitem->getItem()->getWxid(), content);
+    emit SIG_SendChatMsg(Chatitem->getItem()->getId(), content);
     ui->sendEdit->clear();
     setData(Chatitem->getItem());
 }
@@ -95,7 +95,7 @@ void ChatWidget::on_sendFileBtn_clicked() // 发送文件按钮点击事件
         uint64_t filesize = selectedFile->size();
         ChatListItem* Chatitem = ChatListWidget::GetItem();
 
-        emit SIG_SendFile(Chatitem->getItem()->getWxid(), filename, filesize);
+        emit SIG_SendFile(Chatitem->getItem()->getId(), filename, filesize);
     }
 }
 

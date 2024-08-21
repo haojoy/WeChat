@@ -6,6 +6,7 @@ class FileUtil
 {
 public:
     FileUtil();
+    void initializeFileMd5Map();
     static void insertMD5IntoConfig(QString&& filePath);
     static void insertMD5IntoConfig(QString& filePath, QString& fileMd5);
     static void download(const char* remoteFilePath, int fileSize, const char* fileId, const char* fileMd5, int uid);

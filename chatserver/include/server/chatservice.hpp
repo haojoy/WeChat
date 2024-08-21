@@ -14,6 +14,7 @@ using namespace muduo::net;
 #include "friendmodel.hpp"
 #include "usermodel.hpp"
 #include "offlinemessagemodel.hpp"
+#include "fileinfomodel.hpp"
 #include "json.hpp"
 using json = nlohmann::json;
 
@@ -56,6 +57,9 @@ public:
     // 从redis消息队列中获取订阅的消息
     void handleRedisSubscribeMessage(int, string);
 
+    void dealAvatarUpdateRq(const TcpConnectionPtr &conn, json &js, Timestamp time); 
+    void dealAvatarUploadComplete(const TcpConnectionPtr &conn, json &js, Timestamp time);
+
 private:
     ChatService();
 
@@ -71,6 +75,7 @@ private:
     OfflineMsgModel _offlineMsgModel;
     FriendModel _friendModel;
     GroupModel _groupModel;
+    FileInfoModel _fileInfoModel;
 
     // redis操作对象
     Redis _redis;

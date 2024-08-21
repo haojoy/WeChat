@@ -10,6 +10,10 @@ using namespace std;
 server和client的公共文件
 */
 
+// 用户头像上传路径
+#define _USER_AVATAR_UPLOAD_PATH ("/upload/userAvatar/")
+#define _USER_FILE_UPLOAD_PATH ("/upload/userFile/")
+
 enum RspStatus{
     REG_OK,
     REG_USER_EXIST,
@@ -23,6 +27,9 @@ enum RspStatus{
     GET_FRIEND_INFO_NO_THIS_USER,
 
     ADD_FRIEND_ACCEPT,
+
+    NOTNEEDUPLOAD,
+    NEEDUPLOAD,
 };
 
 enum Message
@@ -43,6 +50,10 @@ enum Message
     GET_FRIEND_INFO_REQ, // 获取待添加好友的信息
     GET_FRIEND_INFO_RSP, // 查找信息结果
     REFRESH_FRIEND_LIST,
+
+    SET_AVATAR_RQ,
+    SET_AVATAR_RS,
+    SET_AVATAR_COMPLETE_NOTIFY,
     
 };
 

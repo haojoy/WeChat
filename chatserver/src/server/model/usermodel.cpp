@@ -92,12 +92,55 @@ User UserModel::query(string username)
     return User();
 }
 
+vector<string> UserModel::queryuserinfo(string username)
+{
+    vector<string> vecquery;
+    // 1.组装sql语句
+    char sql[1024] = {0};
+    sprintf(sql, "select `t_user`.userid, `t_file`.file_id, `t_file`.file_path, `t_file`.file_size, `t_file`.file_md5 from `t_user` inner join `t_file` on `t_user`.avatar_id = `t_file`.file_id where `t_user`.username = '%s';", username.c_str());
+
+    shared_ptr<Connection> sp_conn = ConnectionPool::getConnectionPool()->getConnection();
+    if(sp_conn != nullptr){
+        MYSQL_RES *res = sp_conn->query(sql);
+        if (res != nullptr)
+        {
+            MYSQL_ROW row = mysql_fetch_row(res);
+            
+            if (row != nullptr)
+            {
+                vecquery.emplace_back(row[0]);
+                vecquery.emplace_back(row[1]);
+                vecquery.emplace_back(row[2]);
+                vecquery.emplace_back(row[3]);
+                vecquery.emplace_back(row[4]);
+                mysql_free_result(res);
+            }
+        }
+    }
+
+    return vecquery;
+}
+
 // 更新用户的状态信息
 bool UserModel::updateState(User user)
 {
     // 1.组装sql语句
     char sql[1024] = {0};
     sprintf(sql, "update t_user set state = '%s' where userid = %d", user.getState().c_str(), user.getId());
+
+    shared_ptr<Connection> sp_conn = ConnectionPool::getConnectionPool()->getConnection();
+    if (sp_conn != nullptr && sp_conn->update(sql))
+    {
+        return true;
+    }
+
+    return false;
+}
+
+bool UserModel::updateAvatarId(int userid, string fileid)
+{
+    char sql[1024] = {0};
+    sprintf(sql, "update t_user set avatar_id = '%s' where userid = %d", fileid.c_str(), userid);
 
     shared_ptr<Connection> sp_conn = ConnectionPool::getConnectionPool()->getConnection();
     if (sp_conn != nullptr && sp_conn->update(sql))

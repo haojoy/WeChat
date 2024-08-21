@@ -43,7 +43,8 @@ XX(GROUP_CHAT_MSG, groupChat);
     _msgHandlerMap.insert({GROUP_CHAT_MSG, std::bind(&ChatService::groupChat, this, _1, _2, _3)});
 
     _msgHandlerMap.insert({GET_FRIEND_INFO_REQ, std::bind(&ChatService::getFriendInfoReq, this, _1, _2, _3)});
-
+    _msgHandlerMap.insert({SET_AVATAR_RQ, std::bind(&ChatService::dealAvatarUpdateRq, this, _1, _2, _3)});
+    _msgHandlerMap.insert({SET_AVATAR_COMPLETE_NOTIFY, std::bind(&ChatService::dealAvatarUploadComplete, this, _1, _2, _3)});
 
     // 连接redis服务器
     if (_redis.connect())
@@ -117,6 +118,16 @@ void ChatService::login(const TcpConnectionPtr &conn, json &js, Timestamp time)
             response["errno"] = LOGIN_OK;
             response["userid"] = user.getId();
             response["name"] = user.getName();
+
+            vector<string> vecquery = _userModel.queryuserinfo(user.getName());
+            if (vecquery.size() != 0){
+                json fileinfo;
+                fileinfo["file_id"] = vecquery[1];
+                fileinfo["file_path"] = vecquery[2];
+                fileinfo["file_size"] = atoi(vecquery[3].c_str());
+                fileinfo["file_md5"] = vecquery[4];
+                response["avatarinfo"] = fileinfo.dump();
+            }
             // 查询该用户是否有离线消息
             vector<string> vec = _offlineMsgModel.query(id);
             if (!vec.empty())
@@ -137,6 +148,17 @@ void ChatService::login(const TcpConnectionPtr &conn, json &js, Timestamp time)
                     js["userid"] = user.getId();
                     js["name"] = user.getName();
                     js["state"] = user.getState();
+
+                    vector<string> vecquery = _userModel.queryuserinfo(user.getName());
+                    if (vecquery.size() != 0){
+                        json fileinfo;
+                        fileinfo["file_id"] = vecquery[1];
+                        fileinfo["file_path"] = vecquery[2];
+                        fileinfo["file_size"] = atoi(vecquery[3].c_str());
+                        fileinfo["file_md5"] = vecquery[4];
+                        js["avatarinfo"] = fileinfo.dump();
+                    }
+
                     vec2.push_back(js.dump());
                 }
                 response["friends"] = vec2;
@@ -228,7 +250,7 @@ void ChatService::userRegister(const TcpConnectionPtr &conn, json &js, Timestamp
 void ChatService::loginout(const TcpConnectionPtr &conn, json &js, Timestamp time)
 {
     int userid = js["id"].get<int>();
-
+    User user = _userModel.query(userid);
     {
         lock_guard<mutex> lock(_connMutex);
         auto it = _userConnMap.find(userid);
@@ -242,7 +264,8 @@ void ChatService::loginout(const TcpConnectionPtr &conn, json &js, Timestamp tim
     _redis.unsubscribe(userid); 
 
     // 更新用户的状态信息
-    User user(userid, "", "", "offline");
+    //User user(userid, std::string("offline"));
+    user.setState("offline");
     _userModel.updateState(user);
 }
 
@@ -314,13 +337,20 @@ void ChatService::oneChat(const TcpConnectionPtr &conn, json &js, Timestamp time
 void ChatService::getFriendInfoReq(const TcpConnectionPtr &conn, json &js, Timestamp time){
     string name = js["name"];
     // 判断该用户是否存在
-    User user = _userModel.query(name);
+    vector<string> vecquery = _userModel.queryuserinfo(name);
     json response;
-    if (user.getId() != -1){
+    if (vecquery.size() != 0){
         response["errno"] = GET_FRIEND_INFO_SUCCESS;
         response["msgid"] = GET_FRIEND_INFO_RSP;
-        response["userid"] = user.getId();
-        response["name"] = user.getName();
+        response["userid"] = atoi(vecquery[0].c_str());
+        response["name"] = name;
+
+        json fileinfo;
+        fileinfo["file_id"] = vecquery[1];
+        fileinfo["file_path"] = vecquery[2];
+        fileinfo["file_size"] = atoi(vecquery[3].c_str());
+        fileinfo["file_md5"] = vecquery[4];
+        response["avatarinfo"] = fileinfo.dump();
         conn->send(response.dump());
         return;
     }
@@ -344,6 +374,15 @@ void ChatService::addFriendReq(const TcpConnectionPtr &conn, json &js, Timestamp
         response["sendername"] = sendername;
         response["receiverid"] = friendid;
         response["receivername"] = receivername;
+        vector<string> vecquery = _userModel.queryuserinfo(sendername);
+        if (vecquery.size() != 0){
+            json fileinfo;
+            fileinfo["file_id"] = vecquery[1];
+            fileinfo["file_path"] = vecquery[2];
+            fileinfo["file_size"] = atoi(vecquery[3].c_str());
+            fileinfo["file_md5"] = vecquery[4];
+            response["avatarinfo"] = fileinfo.dump();
+        }
         _userConnMap[friendid]->send(response.dump());
     }else{
         OffLineMsg offlinemsg;
@@ -373,6 +412,17 @@ void ChatService::addFriendRsp(const TcpConnectionPtr &conn, json &js, Timestamp
         response["userid"] = user.getId();
         response["username"] = user.getName();
         response["state"] = user.getState();
+
+        vector<string> vecquery = _userModel.queryuserinfo(user.getName());
+        if (vecquery.size() != 0){
+            json fileinfo;
+            fileinfo["file_id"] = vecquery[1];
+            fileinfo["file_path"] = vecquery[2];
+            fileinfo["file_size"] = atoi(vecquery[3].c_str());
+            fileinfo["file_md5"] = vecquery[4];
+            response["avatarinfo"] = fileinfo.dump();
+        }
+
         _userConnMap[friendid]->send(response.dump());
     }
     if(friendinfo.getId() != -1){
@@ -381,6 +431,17 @@ void ChatService::addFriendRsp(const TcpConnectionPtr &conn, json &js, Timestamp
         response["userid"] = friendinfo.getId();
         response["username"] = friendinfo.getName();
         response["state"] = friendinfo.getState();
+        
+        vector<string> vecquery = _userModel.queryuserinfo(friendinfo.getName());
+        if (vecquery.size() != 0){
+            json fileinfo;
+            fileinfo["file_id"] = vecquery[1];
+            fileinfo["file_path"] = vecquery[2];
+            fileinfo["file_size"] = atoi(vecquery[3].c_str());
+            fileinfo["file_md5"] = vecquery[4];
+            response["avatarinfo"] = fileinfo.dump();
+        }
+
         conn->send(response.dump());
     }
 
@@ -456,4 +517,46 @@ void ChatService::handleRedisSubscribeMessage(int userid, string msg)
 
     // 存储该用户的离线消息
     _offlineMsgModel.insert(userid, msg);
+}
+
+void ChatService::dealAvatarUpdateRq(const TcpConnectionPtr &conn, json &js, Timestamp time) {
+    int senderid = js["senderId"];
+    uint64_t filesize = js["filesize"];
+    string filename = js["filename"];
+    string filemd5 = js["filemd5"];
+
+    FileInfo fileinfo;
+    fileinfo.setFileName(filename);
+    fileinfo.setFileSize(filesize);
+    fileinfo.setFileMd5(filemd5);
+
+    json response;
+    string fileid;
+    FileInfo fileinfoquery = _fileInfoModel.query(filemd5);
+    if (fileinfoquery.getFileId() != ""){
+        response["msgid"] = SET_AVATAR_RS;
+        response["errno"] = NOTNEEDUPLOAD;
+        response["avatarid"] = fileinfoquery.getFileId();
+        fileid = fileinfoquery.getFileId();
+    }else{
+        response["msgid"] = SET_AVATAR_RS;
+        response["errno"] = NEEDUPLOAD;
+        response["filepath"] = _USER_AVATAR_UPLOAD_PATH;
+        fileinfo.setFilePath("/upload/userAvatar/" + filename);
+        _fileInfoModel.insert(fileinfo);
+        FileInfo fileinfoquery = _fileInfoModel.query(filemd5);
+        if (fileinfoquery.getFileId() != ""){
+            fileid = fileinfoquery.getFileId();
+            response["avatarid"] = fileinfoquery.getFileId();
+        }
+    }
+    _userModel.updateAvatarId(senderid, fileid);
+    conn->send(response.dump());
+}
+
+void ChatService::dealAvatarUploadComplete(const TcpConnectionPtr &conn, json &js, Timestamp time) {
+    int senderid = js["senderId"];
+    string fileid = js["avatarid"];
+    // 将文件表中该文件状态设为上传成功
+    _fileInfoModel.updateState(fileid);
 }

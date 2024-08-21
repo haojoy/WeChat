@@ -15,7 +15,8 @@ class Message : public Model
 {
 public:
     explicit Message() = default;
-    explicit Message(QString content, QString time, MsgType msgType);
+    explicit Message(QString content, QString time, MsgType msgType):
+        _content(content), _time(time), _msgType(msgType){}
 
     void setContent(QString content) { _content = content; }
     QString getContent() const { return _content; }

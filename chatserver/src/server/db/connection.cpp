@@ -170,7 +170,7 @@ MYSQL_RES* Connection::query(string sql)
 	// 查询操作 select
 	if (mysql_query(_conn, sql.c_str()))
 	{
-		// LOG_ERROR << "查询失败: " << sql;
+		LOG_ERROR << "query failed: " << sql << "error: " << mysql_error(_conn);;
 		return nullptr;
 	}
 	return mysql_use_result(_conn);

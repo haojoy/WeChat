@@ -4,32 +4,41 @@
 #include <QObject>
 #include "Models/model.h"
 
-class User : public Model
+
+class User
 {
 public:
-    explicit User() = default;
-    explicit User(int wxid, QString name, QString image);
+    // explicit User() = default;
 
-    void setWxid(int wxid) { m_wxid = wxid; }
-    int getWxid() const { return m_wxid; }
+    User(int id = -1, QString name = "", QString image ="", int avatarid = -1, QString tel = "", QString pwd = "", QString state = "offline"):
+        id(id), name(name), image(image), avatarid(avatarid), tel(tel), password(pwd), state(state){}
 
-    void setImage(QString image) { m_image = image; }
-    QString getImage() const { return m_image; }
+    void setId(int id) { this->id = id; }
+    void setAvatarId(int avatarid) { this->avatarid = avatarid; }
+    void setImage(QString image) { image = image; }
+    void setName(QString name) { this->name = name; }
+    void setTel(QString tel) { this->tel = tel; }
+    void setPwd(QString pwd) { this->password = pwd; }
+    void setState(QString state) { this->state = state; }
 
-    void setName(QString name) { m_name = name; }
-    QString getName() const { return m_name; }
-
-signals:
+    int getId() { return this->id; }
+    int getAvatarId() { return this->avatarid; }
+    QString getImage() const { return image; }
+    QString getName() { return this->name; }
+    QString getTel() { return this->tel; }
+    QString getPwd() { return this->password; }
+    QString getState() { return this->state; }
 
 protected:
-    /// 唯一id
-    int m_wxid;
-    /// 头像
-    QString m_image;
-    /// 名称
-    QString m_name;
-
+    int id;
+    QString name;
+    QString image;
+    int avatarid;
+    QString tel;
+    QString password;
+    QString state;
 };
+
 Q_DECLARE_METATYPE(User)
 Q_DECLARE_METATYPE(User*)
 #endif // USER_H

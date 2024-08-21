@@ -10,7 +10,9 @@ class Friend : public User
 {
 public:
     explicit Friend() = default;
-    explicit Friend(int wxid, QString name, QString image, bool mute, QString time, int count, QList<Message> messages);
+    explicit Friend(int wxid, QString name, QString image, bool mute, QString time, int count, QList<Message> messages):
+        User(wxid, name, image), m_mute(mute), m_time(time), m_count(count), m_messages(messages){}
+
 
     void setMute(bool mute) { m_mute = mute; }
     bool getMute() const { return m_mute; }

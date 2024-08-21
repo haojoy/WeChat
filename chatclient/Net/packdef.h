@@ -638,6 +638,9 @@ enum RspStatus{
     GET_FRIEND_INFO_NO_THIS_USER,
 
     ADD_FRIEND_ACCEPT,
+
+    NOTNEEDUPLOAD,
+    NEEDUPLOAD,
 };
 
 
@@ -661,6 +664,9 @@ enum MessageType
 
     REFRESH_FRIEND_LIST,
 
+    SET_AVATAR_RQ,
+    SET_AVATAR_RS,
+    SET_AVATAR_COMPLETE_NOTIFY,
 };
 
 struct RegisterMessage {

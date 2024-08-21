@@ -2,7 +2,7 @@
 #define USERMODEL_H
 
 #include "user.hpp"
-
+#include <vector>
 // User表的数据操作类
 class UserModel {
 public:
@@ -13,8 +13,11 @@ public:
     User query(int id);
 
     User query(string username);
+    vector<string> queryuserinfo(string username);
     // 更新用户的状态信息
     bool updateState(User user);
+
+    bool updateAvatarId(int userid, string fileid);
 
     // 重置用户的状态信息
     void resetState();

@@ -8,7 +8,7 @@
 class Model
 {
 public:
-    Model();
+    Model(){};
 };
 Q_DECLARE_METATYPE(Model)
 Q_DECLARE_METATYPE(Model*)
